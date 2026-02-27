@@ -1,5 +1,7 @@
 package kz.enu.vehicle.rental.system.service;
 
+import kz.enu.vehicle.rental.system.exception.ConflictException;
+import kz.enu.vehicle.rental.system.exception.ResourceNotFoundException;
 import kz.enu.vehicle.rental.system.model.Customer;
 import kz.enu.vehicle.rental.system.model.Rental;
 import kz.enu.vehicle.rental.system.model.Vehicle;
@@ -20,7 +22,47 @@ public class RentalService {
 
     private int rentalIdCounter = 1;
 
-    // ------------------- Vehicles -------------------
+    // ------------------- Vehicles (REST CRUD) -------------------
+
+    public List<Vehicle> getAllVehicles() {
+        return vehicles;
+    }
+
+    public Vehicle getVehicleById(int id) {
+        Vehicle vehicle = findVehicleById(id);
+        if (vehicle == null) {
+            throw new ResourceNotFoundException("Vehicle not found with id=" + id);
+        }
+        return vehicle;
+    }
+
+    public Vehicle createVehicle(Vehicle vehicle) {
+        if (findVehicleById(vehicle.getId()) != null) {
+            throw new ConflictException("Vehicle with id=" + vehicle.getId() + " already exists");
+        }
+        vehicles.add(vehicle);
+        return vehicle;
+    }
+
+    public Vehicle updateVehicle(int id, Vehicle payload) {
+        Vehicle existing = getVehicleById(id);
+        existing.setBrand(payload.getBrand());
+        existing.setModel(payload.getModel());
+        existing.setType(payload.getType());
+        existing.setPricePerDay(payload.getPricePerDay());
+        existing.setImageUrl(payload.getImageUrl());
+        return existing;
+    }
+
+    public void deleteVehicleById(int id) {
+        Vehicle vehicle = getVehicleById(id);
+        if (vehicle.isRented()) {
+            throw new ConflictException("Cannot delete vehicle that is currently rented");
+        }
+        vehicles.remove(vehicle);
+    }
+
+    // ------------------- Vehicles (legacy methods for web pages) -------------------
 
     public List<Vehicle> getVehicles() {
         return vehicles;
@@ -34,7 +76,7 @@ public class RentalService {
     }
 
     public boolean addVehicle(Vehicle v) {
-        if (findVehicleById(v.getId()) != null) return false; // id должен быть уникальным
+        if (findVehicleById(v.getId()) != null) return false;
         vehicles.add(v);
         return true;
     }
@@ -55,7 +97,6 @@ public class RentalService {
     public String deleteVehicle(int id) {
         Vehicle v = findVehicleById(id);
         if (v == null) return "ОШИБКА: Авто не найдено";
-
         if (v.isRented()) return "ОШИБКА: Нельзя удалить авто, пока оно в аренде";
 
         vehicles.remove(v);
@@ -85,7 +126,6 @@ public class RentalService {
         Customer c = findCustomerById(id);
         if (c == null) return "ОШИБКА: Клиент не найден";
 
-        // нельзя удалить, если у клиента есть активные аренды
         for (Vehicle v : vehicles) {
             if (v.isRented() && v.getRentedByCustomerId() != null && v.getRentedByCustomerId() == id) {
                 return "ОШИБКА: Нельзя удалить клиента — у него есть активные аренды";
@@ -98,9 +138,6 @@ public class RentalService {
 
     // ------------------- Rent / Return -------------------
 
-    /**
-     * Аренда авто клиентом (реальная логика + проверки).
-     */
     public String rentVehicle(int vehicleId, int customerId) {
         Vehicle v = findVehicleById(vehicleId);
         if (v == null) return "ОШИБКА: Авто не найдено (id=" + vehicleId + ")";
@@ -112,26 +149,20 @@ public class RentalService {
 
         v.setRented(true);
         v.setRentedByCustomerId(customerId);
-
         rentals.add(new Rental(rentalIdCounter++, vehicleId, customerId));
 
         return "ОК: Авто арендовано";
     }
 
-    /**
-     * Возврат авто клиентом. Можно вернуть только СВОЁ авто.
-     */
     public String returnVehicle(int vehicleId, int customerId) {
         Vehicle v = findVehicleById(vehicleId);
         if (v == null) return "ОШИБКА: Авто не найдено";
-
         if (!v.isRented()) return "ОШИБКА: Авто сейчас не в аренде";
 
         if (v.getRentedByCustomerId() == null || v.getRentedByCustomerId() != customerId) {
             return "ОШИБКА: Вы не можете вернуть чужое авто";
         }
 
-        // закрываем активную запись аренды
         for (Rental r : rentals) {
             if (r.getVehicleId() == vehicleId && r.isActive()) {
                 r.markReturned();
@@ -141,7 +172,6 @@ public class RentalService {
 
         v.setRented(false);
         v.setRentedByCustomerId(null);
-
         return "ОК: Авто возвращено";
     }
 
@@ -161,9 +191,6 @@ public class RentalService {
         return rentals;
     }
 
-    /**
-     * Фильтр по типу и максимальной цене.
-     */
     public List<Vehicle> filterVehicles(String type, Double maxPrice) {
         List<Vehicle> result = new ArrayList<>();
         for (Vehicle v : vehicles) {
@@ -174,7 +201,6 @@ public class RentalService {
         return result;
     }
 
-    // удобные методы для админ-страницы (поиск имени авто/клиента по id)
     public String vehicleNameById(int vehicleId) {
         Vehicle v = findVehicleById(vehicleId);
         return v == null ? ("#" + vehicleId) : (v.getBrand() + " " + v.getModel());
@@ -184,6 +210,4 @@ public class RentalService {
         Customer c = findCustomerById(customerId);
         return c == null ? ("#" + customerId) : c.getFullName();
     }
-
-
 }

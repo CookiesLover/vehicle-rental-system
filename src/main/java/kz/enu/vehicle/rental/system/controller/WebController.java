@@ -9,9 +9,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * Контроллер страниц (Thymeleaf).
- */
 @Controller
 public class WebController {
 
@@ -22,8 +19,6 @@ public class WebController {
         this.rentalService = rentalService;
         this.authService = authService;
     }
-
-    // ---------------- AUTH ----------------
 
     @GetMapping("/")
     public String root(HttpSession session) {
@@ -49,7 +44,6 @@ public class WebController {
 
         session.setAttribute("role", role);
 
-        // Учебно: клиент = customerId 1
         if ("КЛИЕНТ".equals(role)) {
             session.setAttribute("customerId", 1);
         }
@@ -95,6 +89,33 @@ public class WebController {
         return "vehicles";
     }
 
+    @GetMapping("/rent")
+    public String rentPage(HttpSession session,
+                           @RequestParam(required = false) String msg,
+                           Model model) {
+        if (!isLogged(session)) return "redirect:/login";
+        if (!isClient(session)) return "redirect:/vehicles?msg=Страница%20доступна%20только%20клиенту";
+
+        model.addAttribute("role", session.getAttribute("role"));
+        model.addAttribute("msg", msg);
+        model.addAttribute("vehicles", rentalService.getVehicles());
+        return "rent";
+    }
+
+    @GetMapping("/return")
+    public String returnPage(HttpSession session,
+                             @RequestParam(required = false) String msg,
+                             Model model) {
+        if (!isLogged(session)) return "redirect:/login";
+        if (!isClient(session)) return "redirect:/vehicles?msg=Страница%20доступна%20только%20клиенту";
+
+        Integer customerId = (Integer) session.getAttribute("customerId");
+        model.addAttribute("role", session.getAttribute("role"));
+        model.addAttribute("msg", msg);
+        model.addAttribute("myVehicles", rentalService.getActiveRentalsForCustomer(customerId));
+        return "return";
+    }
+
     @PostMapping("/rent")
     public String rent(@RequestParam int vehicleId, HttpSession session) {
         if (!isLogged(session)) return "redirect:/login";
@@ -104,7 +125,7 @@ public class WebController {
         if (customerId == null) return "redirect:/login?error=Нет%20ID%20клиента";
 
         String result = rentalService.rentVehicle(vehicleId, customerId);
-        return "redirect:/vehicles?msg=" + urlEncode(result);
+        return "redirect:/rent?msg=" + urlEncode(result);
     }
 
     @PostMapping("/return")
@@ -115,9 +136,8 @@ public class WebController {
         Integer customerId = (Integer) session.getAttribute("customerId");
         if (customerId == null) return "redirect:/login?error=Нет%20ID%20клиента";
 
-        // ✅ ВАЖНО: теперь 2 параметра
         String result = rentalService.returnVehicle(vehicleId, customerId);
-        return "redirect:/vehicles?msg=" + urlEncode(result);
+        return "redirect:/return?msg=" + urlEncode(result);
     }
 
     @GetMapping("/my-rentals")

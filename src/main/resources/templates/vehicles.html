@@ -11,7 +11,9 @@
     <div class="container">
         <span class="navbar-brand fw-bold">Аренда автомобилей</span>
         <div class="ms-auto d-flex gap-2">
-            <a th:if="${role} == 'КЛИЕНТ'" class="btn btn-outline-primary btn-sm" href="/my-rentals">Мои аренды</a>
+            <a th:if="${role} == 'КЛИЕНТ'" class="btn btn-outline-primary btn-sm" href="/rent">Аренда</a>
+            <a th:if="${role} == 'КЛИЕНТ'" class="btn btn-outline-secondary btn-sm" href="/return">Возврат</a>
+            <a th:if="${role} == 'КЛИЕНТ'" class="btn btn-outline-dark btn-sm" href="/my-rentals">Мои аренды</a>
             <a th:if="${role} == 'АДМИН'" class="btn btn-outline-dark btn-sm" href="/admin">Панель администратора</a>
             <a class="btn btn-dark btn-sm" href="/logout">Выйти</a>
         </div>
@@ -23,7 +25,6 @@
 
     <div th:if="${msg}" class="alert alert-info" th:text="${msg}"></div>
 
-    <!-- Фильтр -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <form class="row g-2" method="get" action="/vehicles">

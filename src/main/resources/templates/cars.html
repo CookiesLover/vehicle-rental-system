@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Каталог автомобилей</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="page">
+    <nav class="nav">
+        <div class="nav-title">Аренда авто</div>
+        <a th:href="@{/home}">Автомобили</a>
+        <a th:href="@{/my-rentals}">Мои аренды</a>
+        <a th:if="${isAdmin}" th:href="@{/admin}">Админ-панель</a>
+        <form method="post" th:action="@{/logout}" class="inline-form">
+            <button type="submit" class="btn ghost">Выйти</button>
+        </form>
+    </nav>
+
+    <div class="card" style="margin-bottom: 14px;">
+        <h1>Каталог автомобилей</h1>
+        <p class="muted">Фильтруйте и выбирайте авто для следующей поездки.</p>
+        <form method="get" th:action="@{/home}" class="grid three">
+            <label>Марка
+                <input type="text" name="brand" placeholder="Toyota, Kia...">
+            </label>
+            <label>Мин. цена
+                <input type="number" step="0.01" name="minPrice" placeholder="50">
+            </label>
+            <label>Макс. цена
+                <input type="number" step="0.01" name="maxPrice" placeholder="150">
+            </label>
+            <label>Класс
+                <input type="text" name="vehicleClass" placeholder="SUV, Sedan">
+            </label>
+            <label>Год
+                <input type="number" name="year" placeholder="2024">
+            </label>
+            <label>Статус
+                <select name="status">
+                    <option value="">Любой статус</option>
+                    <option th:each="s : ${statuses}" th:value="${s}" th:text="${s}"></option>
+                </select>
+            </label>
+            <div class="actions">
+                <button type="submit" class="btn secondary">Применить фильтры</button>
+                <a th:href="@{/home}" class="btn ghost">Сбросить</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="catalog" th:if="${not #lists.isEmpty(cars)}">
+        <article class="car-card" th:each="car : ${cars}">
+            <img th:src="${car.imageUrl}" alt="car image">
+            <div class="body">
+                <h3 th:text="${car.brand + ' ' + car.model}"></h3>
+                <p class="muted" th:text="${car.year + ' | ' + car.vehicleClass + ' | ' + car.transmission + ' | ' + car.fuel}"></p>
+                <p><strong th:text="${'$' + car.pricePerDay + ' / день'}"></strong></p>
+                <span class="badge" th:classappend="' ' + ${car.status}"
+                      th:text="${car.status.name() == 'AVAILABLE' ? 'Доступен' : (car.status.name() == 'RENTED' ? 'В аренде' : 'Обслуживание')}"></span>
+                <div class="actions" style="margin-top: 10px;">
+                    <a class="btn" th:href="@{/home/{id}(id=${car.id})}">Подробнее</a>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <div th:if="${#lists.isEmpty(cars)}" class="card">
+        <h3>Автомобили не найдены</h3>
+        <p class="muted">Попробуйте изменить параметры фильтра.</p>
+    </div>
+</div>
+</body>
+</html>
+
+

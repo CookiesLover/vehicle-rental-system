@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Админ | Аренды</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="page">
+    <nav class="nav">
+        <div class="nav-title">Админ | Аренды</div>
+        <a th:href="@{/admin}">Обзор</a>
+        <a th:href="@{/admin/cars}">Автомобили</a>
+        <a th:href="@{/admin/rentals}">Аренды</a>
+        <a th:href="@{/admin/users}">Пользователи</a>
+        <form method="post" th:action="@{/logout}" class="inline-form">
+            <button type="submit" class="btn ghost">Выйти</button>
+        </form>
+    </nav>
+
+    <div class="card">
+        <h1>Управление арендами</h1>
+        <div th:if="${msg}" class="alert" th:text="${msg}"></div>
+
+        <div class="table-wrap" th:if="${not #lists.isEmpty(rentals)}">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Пользователь</th>
+                    <th>Авто</th>
+                    <th>Даты</th>
+                    <th>Сумма</th>
+                    <th>Статус</th>
+                    <th>Изменить</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="r : ${rentals}">
+                    <td th:text="${r.id}"></td>
+                    <td th:text="${r.user.email}"></td>
+                    <td th:text="${r.vehicle.brand + ' ' + r.vehicle.model}"></td>
+                    <td th:text="${r.startDate + ' - ' + r.endDate}"></td>
+                    <td th:text="${'$' + r.totalPrice}"></td>
+                    <td><span class="badge" th:classappend="' ' + ${r.status}"
+                              th:text="${r.status.name() == 'NEW' ? 'Новая' : (r.status.name() == 'APPROVED' ? 'Одобрена' : (r.status.name() == 'REJECTED' ? 'Отклонена' : (r.status.name() == 'ACTIVE' ? 'Активна' : (r.status.name() == 'FINISHED' ? 'Завершена' : 'Отменена'))))}"></span></td>
+                    <td>
+                        <form method="post" th:action="@{/admin/rentals/{id}/status(id=${r.id})}" class="actions">
+                            <select name="status">
+                                <option th:each="s : ${statuses}" th:value="${s}"
+                                        th:text="${s.name() == 'NEW' ? 'Новая' : (s.name() == 'APPROVED' ? 'Одобрена' : (s.name() == 'REJECTED' ? 'Отклонена' : (s.name() == 'ACTIVE' ? 'Активна' : (s.name() == 'FINISHED' ? 'Завершена' : 'Отменена'))))}"></option>
+                            </select>
+                            <button type="submit" class="btn">Применить</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div th:if="${#lists.isEmpty(rentals)}" class="alert">Заявок на аренду пока нет.</div>
+    </div>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Админ | Автомобили</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="page">
+    <nav class="nav">
+        <div class="nav-title">Админ | Автомобили</div>
+        <a th:href="@{/admin}">Обзор</a>
+        <a th:href="@{/admin/cars}">Автомобили</a>
+        <a th:href="@{/admin/rentals}">Аренды</a>
+        <a th:href="@{/admin/users}">Пользователи</a>
+        <form method="post" th:action="@{/logout}" class="inline-form">
+            <button type="submit" class="btn ghost">Выйти</button>
+        </form>
+    </nav>
+
+    <div class="card" style="margin-bottom: 14px;">
+        <h1>Добавить автомобиль</h1>
+        <div th:if="${msg}" class="alert" th:text="${msg}"></div>
+        <form method="post" th:action="@{/admin/cars}" th:object="${carRequest}" class="grid three">
+            <label>Марка<input th:field="*{brand}" required></label>
+            <label>Модель<input th:field="*{model}" required></label>
+            <label>Год<input th:field="*{year}" type="number" required></label>
+            <label>Класс<input th:field="*{vehicleClass}" required></label>
+            <label>КПП<input th:field="*{transmission}" required></label>
+            <label>Топливо<input th:field="*{fuel}" required></label>
+            <label>Мест<input th:field="*{seats}" type="number" required></label>
+            <label>Цена/день<input th:field="*{pricePerDay}" type="number" step="0.01" required></label>
+            <label>URL изображения<input th:field="*{imageUrl}" required></label>
+            <div class="actions"><button type="submit" class="btn secondary">Создать</button></div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Существующие автомобили</h2>
+        <div class="grid" th:if="${not #lists.isEmpty(cars)}">
+            <article class="card" th:each="car : ${cars}">
+                <h3 th:text="${car.brand + ' ' + car.model + ' (' + car.year + ')'}"></h3>
+                <span class="badge" th:classappend="' ' + ${car.status}"
+                      th:text="${car.status.name() == 'AVAILABLE' ? 'Доступен' : (car.status.name() == 'RENTED' ? 'В аренде' : 'Обслуживание')}"></span>
+
+                <form method="post" th:action="@{/admin/cars/{id}/edit(id=${car.id})}" class="grid three" style="margin-top: 10px;">
+                    <label>Марка<input name="brand" th:value="${car.brand}" required></label>
+                    <label>Модель<input name="model" th:value="${car.model}" required></label>
+                    <label>Год<input name="year" type="number" th:value="${car.year}" required></label>
+                    <label>Класс<input name="vehicleClass" th:value="${car.vehicleClass}" required></label>
+                    <label>КПП<input name="transmission" th:value="${car.transmission}" required></label>
+                    <label>Топливо<input name="fuel" th:value="${car.fuel}" required></label>
+                    <label>Мест<input name="seats" type="number" th:value="${car.seats}" required></label>
+                    <label>Цена/день<input name="pricePerDay" type="number" step="0.01" th:value="${car.pricePerDay}" required></label>
+                    <label>URL изображения<input name="imageUrl" th:value="${car.imageUrl}" required></label>
+                    <div class="actions">
+                        <button type="submit" class="btn">Сохранить</button>
+                    </div>
+                </form>
+
+                <form method="post" th:action="@{/admin/cars/{id}/delete(id=${car.id})}" style="margin-top: 8px;">
+                    <button type="submit" class="btn danger">Удалить</button>
+                </form>
+            </article>
+        </div>
+
+        <div th:if="${#lists.isEmpty(cars)}" class="alert">В базе пока нет автомобилей.</div>
+    </div>
+</div>
+</body>
+</html>
+

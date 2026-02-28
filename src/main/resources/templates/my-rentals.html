@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Мои аренды</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="page">
+    <nav class="nav">
+        <div class="nav-title">Аренда авто</div>
+        <a th:href="@{/home}">Автомобили</a>
+        <a th:href="@{/my-rentals}">Мои аренды</a>
+        <form method="post" th:action="@{/logout}" class="inline-form">
+            <button type="submit" class="btn ghost">Выйти</button>
+        </form>
+    </nav>
+
+    <div class="card">
+        <h1>Мои аренды</h1>
+        <p class="muted">Отслеживайте все заявки и активные аренды.</p>
+        <div th:if="${msg}" class="alert" th:text="${msg}"></div>
+
+        <div class="table-wrap" th:if="${not #lists.isEmpty(rentals)}">
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Авто</th>
+                    <th>Даты</th>
+                    <th>Дней</th>
+                    <th>Сумма</th>
+                    <th>Статус</th>
+                    <th>Действие</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="r : ${rentals}">
+                    <td th:text="${r.id}"></td>
+                    <td th:text="${r.vehicle.brand + ' ' + r.vehicle.model}"></td>
+                    <td th:text="${r.startDate + ' - ' + r.endDate}"></td>
+                    <td th:text="${r.days}"></td>
+                    <td th:text="${'$' + r.totalPrice}"></td>
+                    <td><span class="badge" th:classappend="' ' + ${r.status}"
+                              th:text="${r.status.name() == 'NEW' ? 'Новая' : (r.status.name() == 'APPROVED' ? 'Одобрена' : (r.status.name() == 'REJECTED' ? 'Отклонена' : (r.status.name() == 'ACTIVE' ? 'Активна' : (r.status.name() == 'FINISHED' ? 'Завершена' : 'Отменена'))))}"></span></td>
+                    <td>
+                        <form th:if="${r.status.name() != 'FINISHED' and r.status.name() != 'CANCELLED' and r.status.name() != 'REJECTED'}"
+                              method="post" th:action="@{/my-rentals/{id}/cancel(id=${r.id})}">
+                            <button type="submit" class="btn danger">Отменить</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div th:if="${#lists.isEmpty(rentals)}" class="alert">
+            У вас пока нет аренд. Откройте каталог и создайте первую заявку.
+        </div>
+    </div>
+</div>
+</body>
+</html>
+
+

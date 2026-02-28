@@ -1,88 +1,145 @@
 package kz.enu.vehicle.rental.system.model;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 
-/**
- * Автомобиль.
- */
+import java.math.BigDecimal;
+
+@Entity
+@Table(name = "vehicles")
 public class Vehicle {
-    @Min(value = 1, message = "id must be greater than 0")
-    private int id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @NotBlank(message = "brand must not be blank")
+    @NotBlank
+    @Column(nullable = false)
     private String brand;
 
-    @NotBlank(message = "model must not be blank")
+    @NotBlank
+    @Column(nullable = false)
     private String model;
 
-    @NotBlank(message = "type must not be blank")
-    private String type;
+    @NotNull
+    @Min(1980)
+    @Column(name = "manufacture_year", nullable = false)
+    private Integer year;
 
-    @NotNull(message = "pricePerDay is required")
-    @Min(value = 1, message = "pricePerDay must be greater than 0")
-    private Double pricePerDay;
+    @NotBlank
+    @Column(nullable = false)
+    private String vehicleClass;
 
-    @NotBlank(message = "imageUrl must not be blank")
+    @NotBlank
+    @Column(nullable = false)
+    private String transmission;
+
+    @NotBlank
+    @Column(nullable = false)
+    private String fuel;
+
+    @NotNull
+    @Min(1)
+    @Column(nullable = false)
+    private Integer seats;
+
+    @NotNull
+    @DecimalMin(value = "0.0", inclusive = true)
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal pricePerDay;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private VehicleStatus status = VehicleStatus.AVAILABLE;
+
+    @NotBlank
+    @Column(nullable = false)
     private String imageUrl;
 
-    private boolean rented;
-    private Integer rentedByCustomerId; // null если свободен
-
-    public Vehicle() {
+    public Long getId() {
+        return id;
     }
 
-    public Vehicle(int id, String brand, String model) {
-        this(id, brand, model, "Sedan", 15000,
-                "https://images.unsplash.com/photo-1549924231-f129b911e442?auto=format&fit=crop&w=1200&q=60");
-    }
-
-    public Vehicle(int id, String brand, String model, String type, double pricePerDay) {
-        this(id, brand, model, type, pricePerDay,
-                "https://images.unsplash.com/photo-1549924231-f129b911e442?auto=format&fit=crop&w=1200&q=60");
-    }
-
-    public Vehicle(int id, String brand, String model, String type, double pricePerDay, String imageUrl) {
+    public void setId(Long id) {
         this.id = id;
-        this.brand = brand;
-        this.model = model;
-        this.type = type;
-        this.pricePerDay = pricePerDay;
-        this.imageUrl = imageUrl;
-        this.rented = false;
-        this.rentedByCustomerId = null;
     }
 
-    public int getId() { return id; }
+    public String getBrand() {
+        return brand;
+    }
 
-    public String getBrand() { return brand; }
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
 
-    public String getModel() { return model; }
+    public String getModel() {
+        return model;
+    }
 
-    public String getType() { return type; }
+    public void setModel(String model) {
+        this.model = model;
+    }
 
-    public Double getPricePerDay() { return pricePerDay; }
+    public Integer getYear() {
+        return year;
+    }
 
-    public String getImageUrl() { return imageUrl; }
+    public void setYear(Integer year) {
+        this.year = year;
+    }
 
-    public boolean isRented() { return rented; }
+    public String getVehicleClass() {
+        return vehicleClass;
+    }
 
-    public Integer getRentedByCustomerId() { return rentedByCustomerId; }
+    public void setVehicleClass(String vehicleClass) {
+        this.vehicleClass = vehicleClass;
+    }
 
-    public void setId(int id) { this.id = id; }
+    public String getTransmission() {
+        return transmission;
+    }
 
-    public void setBrand(String brand) { this.brand = brand; }
+    public void setTransmission(String transmission) {
+        this.transmission = transmission;
+    }
 
-    public void setModel(String model) { this.model = model; }
+    public String getFuel() {
+        return fuel;
+    }
 
-    public void setType(String type) { this.type = type; }
+    public void setFuel(String fuel) {
+        this.fuel = fuel;
+    }
 
-    public void setPricePerDay(Double pricePerDay) { this.pricePerDay = pricePerDay; }
+    public Integer getSeats() {
+        return seats;
+    }
 
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public void setSeats(Integer seats) {
+        this.seats = seats;
+    }
 
-    public void setRented(boolean rented) { this.rented = rented; }
+    public BigDecimal getPricePerDay() {
+        return pricePerDay;
+    }
 
-    public void setRentedByCustomerId(Integer rentedByCustomerId) { this.rentedByCustomerId = rentedByCustomerId; }
+    public void setPricePerDay(BigDecimal pricePerDay) {
+        this.pricePerDay = pricePerDay;
+    }
+
+    public VehicleStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(VehicleStatus status) {
+        this.status = status;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }

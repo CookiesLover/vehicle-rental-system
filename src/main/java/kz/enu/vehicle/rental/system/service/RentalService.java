@@ -1,213 +1,134 @@
 package kz.enu.vehicle.rental.system.service;
 
+import kz.enu.vehicle.rental.system.dto.rental.RentalCreateRequest;
 import kz.enu.vehicle.rental.system.exception.ConflictException;
 import kz.enu.vehicle.rental.system.exception.ResourceNotFoundException;
-import kz.enu.vehicle.rental.system.model.Customer;
-import kz.enu.vehicle.rental.system.model.Rental;
-import kz.enu.vehicle.rental.system.model.Vehicle;
+import kz.enu.vehicle.rental.system.model.*;
+import kz.enu.vehicle.rental.system.repository.RentalRepository;
+import kz.enu.vehicle.rental.system.repository.UserRepository;
+import kz.enu.vehicle.rental.system.repository.VehicleRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
+import java.math.BigDecimal;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-/**
- * Вся логика системы аренды. Хранение в памяти (ArrayList).
- */
 @Service
 public class RentalService {
 
-    private final List<Vehicle> vehicles = new ArrayList<>();
-    private final List<Customer> customers = new ArrayList<>();
-    private final List<Rental> rentals = new ArrayList<>();
+    private final RentalRepository rentalRepository;
+    private final UserRepository userRepository;
+    private final VehicleRepository vehicleRepository;
 
-    private int rentalIdCounter = 1;
-
-    // ------------------- Vehicles (REST CRUD) -------------------
-
-    public List<Vehicle> getAllVehicles() {
-        return vehicles;
+    public RentalService(RentalRepository rentalRepository, UserRepository userRepository, VehicleRepository vehicleRepository) {
+        this.rentalRepository = rentalRepository;
+        this.userRepository = userRepository;
+        this.vehicleRepository = vehicleRepository;
     }
 
-    public Vehicle getVehicleById(int id) {
-        Vehicle vehicle = findVehicleById(id);
-        if (vehicle == null) {
-            throw new ResourceNotFoundException("Vehicle not found with id=" + id);
+    @PreAuthorize("hasRole('USER')")
+    public Rental createRental(String userEmail, RentalCreateRequest request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Vehicle vehicle = vehicleRepository.findById(request.getCarId())
+                .orElseThrow(() -> new ResourceNotFoundException("Car not found id=" + request.getCarId()));
+
+        if (vehicle.getStatus() != VehicleStatus.AVAILABLE) {
+            throw new ConflictException("Car is not available");
         }
-        return vehicle;
-    }
 
-    public Vehicle createVehicle(Vehicle vehicle) {
-        if (findVehicleById(vehicle.getId()) != null) {
-            throw new ConflictException("Vehicle with id=" + vehicle.getId() + " already exists");
+        if (!request.getEndDate().isAfter(request.getStartDate())) {
+            throw new IllegalArgumentException("endDate must be after startDate");
         }
-        vehicles.add(vehicle);
-        return vehicle;
+
+        long days = ChronoUnit.DAYS.between(request.getStartDate(), request.getEndDate());
+        BigDecimal totalPrice = vehicle.getPricePerDay().multiply(BigDecimal.valueOf(days));
+
+        Rental rental = new Rental();
+        rental.setUser(user);
+        rental.setVehicle(vehicle);
+        rental.setStartDate(request.getStartDate());
+        rental.setEndDate(request.getEndDate());
+        rental.setDays((int) days);
+        rental.setTotalPrice(totalPrice);
+        rental.setStatus(RentalStatus.NEW);
+
+        return rentalRepository.save(rental);
     }
 
-    public Vehicle updateVehicle(int id, Vehicle payload) {
-        Vehicle existing = getVehicleById(id);
-        existing.setBrand(payload.getBrand());
-        existing.setModel(payload.getModel());
-        existing.setType(payload.getType());
-        existing.setPricePerDay(payload.getPricePerDay());
-        existing.setImageUrl(payload.getImageUrl());
-        return existing;
+    @PreAuthorize("hasRole('USER')")
+    public List<Rental> myRentals(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return rentalRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
     }
 
-    public void deleteVehicleById(int id) {
-        Vehicle vehicle = getVehicleById(id);
-        if (vehicle.isRented()) {
-            throw new ConflictException("Cannot delete vehicle that is currently rented");
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<Rental> allRentals() {
+        return rentalRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public Rental updateStatus(Long rentalId, RentalStatus targetStatus) {
+        Rental rental = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rental not found id=" + rentalId));
+
+        Vehicle vehicle = rental.getVehicle();
+        RentalStatus current = rental.getStatus();
+
+        if (current == RentalStatus.CANCELLED || current == RentalStatus.FINISHED || current == RentalStatus.REJECTED) {
+            throw new ConflictException("Cannot change final rental status");
         }
-        vehicles.remove(vehicle);
-    }
 
-    // ------------------- Vehicles (legacy methods for web pages) -------------------
-
-    public List<Vehicle> getVehicles() {
-        return vehicles;
-    }
-
-    public Vehicle findVehicleById(int id) {
-        for (Vehicle v : vehicles) {
-            if (v.getId() == id) return v;
-        }
-        return null;
-    }
-
-    public boolean addVehicle(Vehicle v) {
-        if (findVehicleById(v.getId()) != null) return false;
-        vehicles.add(v);
-        return true;
-    }
-
-    public String updateVehicle(int id, String brand, String model, String type, double pricePerDay, String imageUrl) {
-        Vehicle v = findVehicleById(id);
-        if (v == null) return "ОШИБКА: Авто не найдено (id=" + id + ")";
-
-        v.setBrand(brand);
-        v.setModel(model);
-        v.setType(type);
-        v.setPricePerDay(pricePerDay);
-        v.setImageUrl(imageUrl);
-
-        return "ОК: Автомобиль обновлён";
-    }
-
-    public String deleteVehicle(int id) {
-        Vehicle v = findVehicleById(id);
-        if (v == null) return "ОШИБКА: Авто не найдено";
-        if (v.isRented()) return "ОШИБКА: Нельзя удалить авто, пока оно в аренде";
-
-        vehicles.remove(v);
-        return "ОК: Автомобиль удалён";
-    }
-
-    // ------------------- Customers -------------------
-
-    public List<Customer> getCustomers() {
-        return customers;
-    }
-
-    public Customer findCustomerById(int id) {
-        for (Customer c : customers) {
-            if (c.getId() == id) return c;
-        }
-        return null;
-    }
-
-    public boolean addCustomer(Customer c) {
-        if (findCustomerById(c.getId()) != null) return false;
-        customers.add(c);
-        return true;
-    }
-
-    public String deleteCustomer(int id) {
-        Customer c = findCustomerById(id);
-        if (c == null) return "ОШИБКА: Клиент не найден";
-
-        for (Vehicle v : vehicles) {
-            if (v.isRented() && v.getRentedByCustomerId() != null && v.getRentedByCustomerId() == id) {
-                return "ОШИБКА: Нельзя удалить клиента — у него есть активные аренды";
+        if (targetStatus == RentalStatus.APPROVED || targetStatus == RentalStatus.ACTIVE) {
+            if (vehicle.getStatus() == VehicleStatus.AVAILABLE) {
+                vehicle.setStatus(VehicleStatus.RENTED);
+            } else if (vehicle.getStatus() == VehicleStatus.RENTED
+                    && (current == RentalStatus.APPROVED || current == RentalStatus.ACTIVE)) {
+                // Allowed transition for the same active rental lifecycle.
+            } else {
+                throw new ConflictException("Car cannot be moved to this status because it is not available");
             }
         }
 
-        customers.remove(c);
-        return "ОК: Клиент удалён";
-    }
-
-    // ------------------- Rent / Return -------------------
-
-    public String rentVehicle(int vehicleId, int customerId) {
-        Vehicle v = findVehicleById(vehicleId);
-        if (v == null) return "ОШИБКА: Авто не найдено (id=" + vehicleId + ")";
-
-        Customer c = findCustomerById(customerId);
-        if (c == null) return "ОШИБКА: Клиент не найден (id=" + customerId + ")";
-
-        if (v.isRented()) return "ОШИБКА: Это авто уже в аренде";
-
-        v.setRented(true);
-        v.setRentedByCustomerId(customerId);
-        rentals.add(new Rental(rentalIdCounter++, vehicleId, customerId));
-
-        return "ОК: Авто арендовано";
-    }
-
-    public String returnVehicle(int vehicleId, int customerId) {
-        Vehicle v = findVehicleById(vehicleId);
-        if (v == null) return "ОШИБКА: Авто не найдено";
-        if (!v.isRented()) return "ОШИБКА: Авто сейчас не в аренде";
-
-        if (v.getRentedByCustomerId() == null || v.getRentedByCustomerId() != customerId) {
-            return "ОШИБКА: Вы не можете вернуть чужое авто";
+        if (targetStatus == RentalStatus.REJECTED || targetStatus == RentalStatus.CANCELLED || targetStatus == RentalStatus.FINISHED) {
+            vehicle.setStatus(VehicleStatus.AVAILABLE);
         }
 
-        for (Rental r : rentals) {
-            if (r.getVehicleId() == vehicleId && r.isActive()) {
-                r.markReturned();
-                break;
-            }
+        rental.setStatus(targetStatus);
+        vehicleRepository.save(vehicle);
+        return rentalRepository.save(rental);
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    public Rental cancelMyRental(String userEmail, Long rentalId) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Rental rental = rentalRepository.findById(rentalId)
+                .orElseThrow(() -> new ResourceNotFoundException("Rental not found id=" + rentalId));
+
+        if (!rental.getUser().getId().equals(user.getId())) {
+            throw new ConflictException("Cannot cancel another user's rental");
         }
 
-        v.setRented(false);
-        v.setRentedByCustomerId(null);
-        return "ОК: Авто возвращено";
-    }
-
-    // ------------------- Views -------------------
-
-    public List<Vehicle> getActiveRentalsForCustomer(int customerId) {
-        List<Vehicle> result = new ArrayList<>();
-        for (Vehicle v : vehicles) {
-            if (v.isRented() && v.getRentedByCustomerId() != null && v.getRentedByCustomerId() == customerId) {
-                result.add(v);
-            }
+        if (rental.getStatus() == RentalStatus.FINISHED || rental.getStatus() == RentalStatus.CANCELLED || rental.getStatus() == RentalStatus.REJECTED) {
+            throw new ConflictException("Rental cannot be cancelled in this status");
         }
-        return result;
-    }
 
-    public List<Rental> getAllRentals() {
-        return rentals;
-    }
-
-    public List<Vehicle> filterVehicles(String type, Double maxPrice) {
-        List<Vehicle> result = new ArrayList<>();
-        for (Vehicle v : vehicles) {
-            boolean okType = (type == null || type.isBlank() || "ALL".equalsIgnoreCase(type) || v.getType().equalsIgnoreCase(type));
-            boolean okPrice = (maxPrice == null || v.getPricePerDay() <= maxPrice);
-            if (okType && okPrice) result.add(v);
+        rental.setStatus(RentalStatus.CANCELLED);
+        if (rental.getVehicle().getStatus() == VehicleStatus.RENTED) {
+            rental.getVehicle().setStatus(VehicleStatus.AVAILABLE);
+            vehicleRepository.save(rental.getVehicle());
         }
-        return result;
+
+        return rentalRepository.save(rental);
     }
 
-    public String vehicleNameById(int vehicleId) {
-        Vehicle v = findVehicleById(vehicleId);
-        return v == null ? ("#" + vehicleId) : (v.getBrand() + " " + v.getModel());
-    }
-
-    public String customerNameById(int customerId) {
-        Customer c = findCustomerById(customerId);
-        return c == null ? ("#" + customerId) : c.getFullName();
+    @PreAuthorize("hasRole('ADMIN')")
+    public Rental finishRental(Long rentalId) {
+        return updateStatus(rentalId, RentalStatus.FINISHED);
     }
 }

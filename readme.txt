@@ -1,198 +1,119 @@
+ВТиПО-33 Сайлау Алмаз
+Веб программалау
+Vehicle Rental System (REST API + Web)
+Система аренды автомобилей на Spring Boot: REST API для работы с данными и веб-интерфейс на Thymeleaf для пользователей и администратора.
 
- package kz.enu.vehicle.rental.system.controller;
- 
- import kz.enu.vehicle.rental.system.model.Customer;
- import kz.enu.vehicle.rental.system.model.Vehicle;
- import kz.enu.vehicle.rental.system.service.AuthService;
- import kz.enu.vehicle.rental.system.service.RentalService;
- import jakarta.servlet.http.HttpSession;
- import org.springframework.stereotype.Controller;
- import org.springframework.ui.Model;
- import org.springframework.web.bind.annotation.*;
- 
+Стек технологий
+Java 17
+Spring Boot 3.2.5
+Spring Web
+Spring Data JPA
+Spring Security
+Spring Validation
+Thymeleaf
+H2 Database (in-memory)
+Swagger/OpenAPI (springdoc-openapi)
+Maven
+Основные возможности
+Регистрация и вход пользователей.
+Роли: ROLE_USER и ROLE_ADMIN.
+Каталог автомобилей с фильтрацией.
+Создание заявок на аренду.
+Просмотр и отмена своих аренд.
+Админ-управление автомобилями, арендой и пользователями.
+Автоматический расчет суммы аренды на основе периода и цены за день.
+Запуск локально
+Откройте проект в IntelliJ IDEA.
+Запустите класс VehicleRentalSystemApplication.
+Приложение стартует на http://localhost:8080.
+Альтернатива через Maven:
 
- @Controller
- public class WebController {
- 
-     private final RentalService rentalService;
-     private final AuthService authService;
- 
-     public WebController(RentalService rentalService, AuthService authService) {
-         this.rentalService = rentalService;
-         this.authService = authService;
-     }
- 
+mvn spring-boot:run
+Полезные ссылки
+Swagger UI: http://localhost:8080/swagger-ui.html
+OpenAPI JSON: http://localhost:8080/api-docs
+H2 Console: http://localhost:8080/h2-console
+Тестовые пользователи (seed)
+ADMIN: admin@rent.local / admin123
+USER: user@rent.local / user123
+API Endpoints
+1. Auth
+Метод	Эндпоинт	Описание
+POST	/api/auth/register	Регистрация
+POST	/api/auth/login	Логин
+2. Cars
+Метод	Эндпоинт	Описание
+GET	/api/cars	Список авто (с фильтрами)
+GET	/api/cars/{id}	Авто по ID
+POST	/api/cars	Создать авто (ADMIN)
+PUT	/api/cars/{id}	Обновить авто (ADMIN)
+DELETE	/api/cars/{id}	Удалить авто (ADMIN)
+Фильтры для GET /api/cars:
 
-     @GetMapping("/")
-     public String root(HttpSession session) {
-         if (session.getAttribute("role") == null) return "redirect:/login";
-         return "redirect:/vehicles";
-     }
- 
-     @GetMapping("/login")
-     public String loginPage(Model model, @RequestParam(required = false) String error) {
-         model.addAttribute("error", error);
-         return "login";
-     }
- 
-     @PostMapping("/login")
-     public String doLogin(@RequestParam String username,
-                           @RequestParam String password,
-                           HttpSession session) {
- 
-         String role = authService.login(username, password);
-         if (role == null) {
-             return "redirect:/login?error=Неверный%20логин%20или%20пароль";
-         }
- 
-         session.setAttribute("role", role);
- 
-
-             session.setAttribute("customerId", 1);
-         }
- 
-         return "redirect:/vehicles";
-     }
- 
-     @GetMapping("/logout")
-     public String logout(HttpSession session) {
-         session.invalidate();
-         return "redirect:/login";
-     }
- 
-     private boolean isLogged(HttpSession session) {
-         return session.getAttribute("role") != null;
-     }
- 
-     private boolean isAdmin(HttpSession session) {
-         return "АДМИН".equals(session.getAttribute("role"));
-     }
- 
-     private boolean isClient(HttpSession session) {
-         return "КЛИЕНТ".equals(session.getAttribute("role"));
-     }
- 
-     // ---------------- USER PAGES ----------------
- 
-     @GetMapping("/vehicles")
-     public String vehiclesPage(HttpSession session,
-                                @RequestParam(required = false) String type,
-                                @RequestParam(required = false) Double maxPrice,
-                                @RequestParam(required = false) String msg,
-                                Model model) {
- 
-         if (!isLogged(session)) return "redirect:/login";
- 
-         model.addAttribute("role", session.getAttribute("role"));
-         model.addAttribute("type", type == null ? "ALL" : type);
-         model.addAttribute("maxPrice", maxPrice);
-         model.addAttribute("msg", msg);
- 
-         model.addAttribute("vehicles", rentalService.filterVehicles(type, maxPrice));
-         return "vehicles";
-     }
- 
-  @GetMapping("/rent")
-  public String rentPage(HttpSession session,
-                         @RequestParam(required = false) String msg,
-                        Model model) {
-     if (!isLogged(session)) return "redirect:/login";
-    if (!isClient(session)) return "redirect:/vehicles?msg=Страница%20доступна%20только%20клиенту";
-
-        model.addAttribute("role", session.getAttribute("role"));
-        model.addAttribute("msg", msg);
-        model.addAttribute("vehicles", rentalService.getVehicles());
-        return "rent";
-    }
-
-    @GetMapping("/return")
-    public String returnPage(HttpSession session,
-                             @RequestParam(required = false) String msg,
-                             Model model) {
-        if (!isLogged(session)) return "redirect:/login";
-        if (!isClient(session)) return "redirect:/vehicles?msg=Страница%20доступна%20только%20клиенту";
-
-        Integer customerId = (Integer) session.getAttribute("customerId");
-        model.addAttribute("role", session.getAttribute("role"));
-        model.addAttribute("msg", msg);
-        model.addAttribute("myVehicles", rentalService.getActiveRentalsForCustomer(customerId));
-        return "return";
-    }
-
-     @PostMapping("/rent")
-     public String rent(@RequestParam int vehicleId, HttpSession session) {
-         if (!isLogged(session)) return "redirect:/login";
-         if (!isClient(session)) return "redirect:/vehicles?msg=Только%20клиент%20может%20арендовать";
- 
-         Integer customerId = (Integer) session.getAttribute("customerId");
-         if (customerId == null) return "redirect:/login?error=Нет%20ID%20клиента";
- 
-         String result = rentalService.rentVehicle(vehicleId, customerId);
-
-       return "redirect:/rent?msg=" + urlEncode(result);
-     }
- 
-     @PostMapping("/return")
-     public String ret(@RequestParam int vehicleId, HttpSession session) {
-         if (!isLogged(session)) return "redirect:/login";
-         if (!isClient(session)) return "redirect:/vehicles?msg=Только%20клиент%20может%20возвращать";
- 
-         Integer customerId = (Integer) session.getAttribute("customerId");
-         if (customerId == null) return "redirect:/login?error=Нет%20ID%20клиента";
- 
-
-       return "redirect:/return?msg=" + urlEncode(result);
-     }
- 
-     @GetMapping("/my-rentals")
-     public String myRentals(HttpSession session,
-                             @RequestParam(required = false) String msg,
-                             Model model) {
-         if (!isLogged(session)) return "redirect:/login";
-         if (!isClient(session)) return "redirect:/vehicles";
- 
-         Integer customerId = (Integer) session.getAttribute("customerId");
-         model.addAttribute("role", session.getAttribute("role"));
-         model.addAttribute("msg", msg);
-         model.addAttribute("myVehicles", rentalService.getActiveRentalsForCustomer(customerId));
- 
-         return "my_rentals";
-     }
- 
-     // ---------------- ADMIN PAGES ----------------
- 
-     @GetMapping("/admin")
-     public String adminPage(HttpSession session,
-                             @RequestParam(required = false) String msg,
-                             Model model) {
-         if (!isAdmin(session)) return "redirect:/vehicles?msg=Нет%20доступа";
- 
-    @ public class WebController {
-         return "redirect:/admin?msg=ОК:%20Клиент%20добавлен";
-     }
- 
-     @PostMapping("/admin/customer/delete")
-     public String adminDeleteCustomer(@RequestParam int id, HttpSession session) {
-         if (!isAdmin(session)) return "redirect:/vehicles?msg=Нет%20доступа";
- 
-         String result = rentalService.deleteCustomer(id);
-         return "redirect:/admin?msg=" + urlEncode(result);
-     }
- 
-     @GetMapping("/admin/rentals")
-     public String adminRentals(HttpSession session, Model model) {
-         if (!isAdmin(session)) return "redirect:/vehicles?msg=Нет%20доступа";
- 
-         model.addAttribute("role", session.getAttribute("role"));
-         model.addAttribute("rentals", rentalService.getAllRentals());
-         model.addAttribute("service", rentalService);
- 
-         return "admin_rentals";
-     }
- 
-     private String urlEncode(String s) {
-         return s.replace(" ", "%20");
-     }
-
+brand
+minPrice
+maxPrice
+vehicleClass
+year
+status (AVAILABLE, RENTED, MAINTENANCE)
+3. Rentals
+Метод	Эндпоинт	Описание
+POST	/api/rentals	Создать аренду (USER)
+GET	/api/rentals/my	Мои аренды (USER)
+PATCH	/api/rentals/{id}/cancel	Отменить свою аренду (USER)
+GET	/api/rentals	Все аренды (ADMIN)
+PATCH	/api/rentals/{id}/status	Сменить статус аренды (ADMIN)
+PATCH	/api/rentals/{id}/finish	Завершить аренду (ADMIN)
+4. Users (ADMIN)
+Метод	Эндпоинт	Описание
+GET	/api/users	Список пользователей
+PATCH	/api/users/{id}/role	Смена роли
+PATCH	/api/users/{id}/toggle-enabled	Включить/выключить пользователя
+Примеры JSON-запросов
+Регистрация
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+{
+  "name": "Test User",
+  "email": "test@example.com",
+  "password": "123456",
+  "phone": "+7-777-777-77-77"
 }
- 
+Добавить автомобиль (ADMIN)
+POST http://localhost:8080/api/cars
+Content-Type: application/json
+{
+  "brand": "Toyota",
+  "model": "Camry",
+  "year": 2023,
+  "vehicleClass": "Sedan",
+  "transmission": "Automatic",
+  "fuel": "Petrol",
+  "seats": 5,
+  "pricePerDay": 95.50,
+  "imageUrl": "https://example.com/camry.jpg"
+}
+Создать аренду (USER)
+POST http://localhost:8080/api/rentals
+Content-Type: application/json
+{
+  "carId": 1,
+  "startDate": "2026-03-05",
+  "endDate": "2026-03-10"
+}
+Изменить статус аренды (ADMIN)
+PATCH http://localhost:8080/api/rentals/1/status
+Content-Type: application/json
+{
+  "status": "APPROVED"
+}
+Web-страницы
+/login
+/register
+/home
+/home/{id}
+/my-rentals
+/admin
+/admin/cars
+/admin/rentals
+/admin/users
